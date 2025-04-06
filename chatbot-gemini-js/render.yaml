@@ -1,0 +1,10 @@
+services:
+  - name: chatbot-sec4you
+    type: web
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: API_KEY
+        value: "AIzaSyDQ7Y29093-i4pSx3eg7dgwoMi-ItZYPo4"

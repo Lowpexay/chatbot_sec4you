@@ -18,8 +18,7 @@ async function sendMessage() {
   
     // Faz a requisição para o backend
     try {
-      // filepath: /Users/gabrielgramacho/chatbot_sec4you/chatbot_sec4you/chatbot-gemini-js/public/script.js
-    const response = await fetch("/api/send_message", { // Alterado para /api/send_message
+      const response = await fetch("/send_message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userInput.value }),
