@@ -1,81 +1,52 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const path = require("path");
 const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
+const dotenv = require("dotenv");
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Configuração da chave de API
 const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  console.error("A chave de API não foi configurada no arquivo .env");
-  process.exit(1);
-}
-
-// Caminho para as imagens
-const IMAGE_FOLDER = path.join(__dirname, "images");
-
-// Middleware
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public")));
-
-// Configuração do LangChain com o modelo Gemini
 const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-1.5-pro", // Modelo Gemini
+  model: "gemini-1.5-pro",
   temperature: 0,
   maxRetries: 2,
-  apiKey: API_KEY, // Passa a chave de API diretamente
+  apiKey: API_KEY,
 });
 
-// Rota principal para servir o frontend
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método não permitido" });
+  }
 
-app.post("/send_message", async (req, res) => {
-    const userMessage = req.body.message;
-  
-    if (!userMessage) {
-      return res.status(400).json({ error: "Mensagem vazia" });
-    }
-  
-    try {
-      // Configura o prompt para o LangChain
-      const aiMsg = await llm.invoke([
-        [
-          "system",
-          `Você é um assistente útil que responde em português brasileiro. 
-          Analise o tom emocional da mensagem do usuário e inclua o tom no formato [TOM: feliz, bravo, triste, explicando, neutro].
-          Depois, responda de forma clara e objetiva.`,
-        ],
-        ["human", userMessage],
-      ]);
-  
-      const aiResponse = aiMsg.content || "Desculpe, não consegui gerar uma resposta.";
-  
-      // Detecta perguntas ou solicitações de explicação no texto do usuário
-      let mood = "neutro"; // Tom padrão
-      if (userMessage.trim().endsWith("?") || /explique|como|por que|o que|qual/i.test(userMessage)) {
-        mood = "explicando";
-      } else {
-        // Extrai o tom da resposta gerada pela IA
-        const moodMatch = aiResponse.match(/\[TOM:\s*(feliz|bravo|triste|explicando|neutro)\]/i);
-        mood = moodMatch ? moodMatch[1].toLowerCase() : "neutro";
-      }
-  
-      // Remove o marcador de tom da resposta antes de enviá-la ao frontend
-      const cleanResponse = aiResponse.replace(/\[TOM:\s*(feliz|bravo|triste|explicando|neutro)\]/i, "").trim();
-  
-      res.json({ response: cleanResponse, mood });
-    } catch (error) {
-      console.error("Erro ao se comunicar com a API do Gemini:", error.message || error);
-      res.status(500).json({ error: "Erro ao se comunicar com a API do Gemini." });
-    }
-  });
+  const userMessage = req.body.message;
+
+  if (!userMessage) {
+    return res.status(400).json({ error: "Mensagem vazia" });
+  }
+
+  try {
+    const aiMsg = await llm.invoke([
+      [
+        "system",
+        `Você é um assistente útil que responde em português brasileiro. 
+        Analise o tom emocional da mensagem do usuário e inclua o tom no formato [TOM: feliz, bravo, triste, explicando, neutro].
+        Depois, responda de forma clara e objetiva.`,
+      ],
+      ["human", userMessage],
+    ]);
+
+    const aiResponse = aiMsg.content || "Desculpe, não consegui gerar uma resposta.";
+    const moodMatch = aiResponse.match(/\[TOM:\s*(feliz|bravo|triste|explicando|neutro)\]/i);
+    const mood = moodMatch ? moodMatch[1].toLowerCase() : "neutro";
+    const cleanResponse = aiResponse.replace(/\[TOM:\s*(feliz|bravo|triste|explicando|neutro)\]/i, "").trim();
+
+    res.json({ response: cleanResponse, mood });
+  } catch (error) {
+    console.error("Erro ao se comunicar com a API do Gemini:", error.message || error);
+    res.status(500).json({ error: "Erro ao se comunicar com a API do Gemini." });
+  }
+};
 // Rota para servir imagens
 app.use("/images", express.static(IMAGE_FOLDER));
 
